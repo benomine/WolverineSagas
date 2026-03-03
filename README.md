@@ -316,11 +316,28 @@ kafka-console-producer --broker-list localhost:9092 --topic wolverine-sagas
 4. Error message stored in `Message` column
 5. Saga **persists** in database (NOT cleaned up)
 
+### View Failed Sagas
+```bash
+# Get all failed sagas with their details
+curl http://localhost:5000/sagas/failed
+
+# Response:
+# [
+#   {
+#     "sagaId": "550e8400-e29b-41d4-a716-446655440001",
+#     "initialMessage": "this will fail",
+#     "errorMessage": "Simulated failure in processing Kafka saga."
+#   }
+# ]
+```
+
+The endpoint returns a projection with:
+- `sagaId`: The saga identifier
+- `initialMessage`: The original Kafka message content
+- `errorMessage`: The error that caused the failure
+
 ### Retry a Failed Saga
 ```bash
-# Get the saga ID from failed sagas
-curl -s http://localhost:5000/openapi/v1.json | jq .
-
 # Retry the saga via the retry endpoint
 curl -X POST http://localhost:5000/sagas/{id}/retry
 
@@ -336,7 +353,8 @@ curl -X POST http://localhost:5000/sagas/{id}/retry
 5. If successful: Saga cleaned up
 6. If failed again: Saga persists with new error
 
-You can also use **Scalar UI** (interactive API documentation):
+**Interactive API Testing:**
+Use **Scalar UI** for interactive API documentation and testing:
 ```bash
 # Available at http://localhost:5000/scalar/v1 in development
 ```
