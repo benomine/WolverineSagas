@@ -30,19 +30,22 @@ graph TD
     Success -->|Failure| FailSaga["FailSaga<br/>Handler + Error"]
     
     CompleteSaga --> Completed["[Completed]<br/>MarkCompleted()"]
-    FailSaga --> Failed["[Failed]<br/>MarkCompleted()"]
+    FailSaga --> Failed["[Failed]<br/>Error Persisted"]
     
     Completed --> Cleanup1["Saga Removed<br/>from DB"]
-    Failed --> Cleanup2["Saga Removed<br/>from DB"]
+    Failed --> Persist["Saga Persists<br/>in DB"]
     
     Cleanup1 --> END((END))
-    Cleanup2 --> END
+    Persist --> Inspect["Available for<br/>Inspection & Retry"]
     
     style START fill:#90EE90
     style Started fill:#87CEEB
     style Processing fill:#FFD700
     style Completed fill:#90EE90
     style Failed fill:#FF6B6B
+    style Cleanup1 fill:#90EE90
+    style Persist fill:#FFD700
+    style Inspect fill:#FFD700
     style END fill:#90EE90
 ```
 
@@ -92,33 +95,58 @@ public enum KafkaSagaState
 }
 ```
 
-### ✅ Error Tracking
-Error messages stored with failed sagas:
+### ✅ Error Tracking & Persistence
+Failed sagas persist in the database with complete error details:
 ```csharp
-public string? Message { get; set; } // Stores error details
+public enum KafkaSagaState { Started, Processing, Completed, Failed }
+public string? Message { get; set; } // Stores error details and stack trace
 ```
+This allows you to:
+- **Inspect** failed sagas and understand what went wrong
+- **Debug** issues by examining error messages
+- **Implement retry logic** for failed messages
+- **Maintain an audit trail** of all saga executions
 
 ### ✅ Durable Processing
 - Messages in durable inbox until saga completes
-- Automatic cleanup on success/failure
+- Automatic cleanup on **success only**
+- Failed messages persist for inspection and troubleshooting
 - No message loss
 
-### ✅ Database Cleanup
-Sagas automatically cleaned up after `MarkCompleted()`:
+### ✅ Message Lifecycle
+
+**Success Path:**
+- CompleteSaga handler executes
+- Saga marked as Completed
+- Saga removed from database
+- Message acknowledged to Kafka
+
+**Failure Path:**
+- FailSaga handler executes with error message
+- Saga marked as Failed (persisted with error details)
+- Saga remains in database for troubleshooting
+- Message acknowledged to Kafka (removed from inbox)
 
 ```mermaid
 graph LR
     Success["Success:<br/>CompleteSaga"] --> MarkComplete1["MarkCompleted()"]
     Failure["Failure:<br/>FailSaga + Error"] --> MarkComplete2["MarkCompleted()"]
-    MarkComplete1 --> DBClean["Saga Removed<br/>from kafka_sagas"]
-    MarkComplete2 --> DBClean
-    DBClean --> KafkaAck["Message Acked<br/>to Kafka"]
-    KafkaAck --> Inbox["Removed from<br/>Durable Inbox"]
+    
+    MarkComplete1 --> DBClean["Saga Removed<br/>from DB"]
+    MarkComplete2 --> DBKeep["Saga Persisted<br/>in DB"]
+    
+    DBClean --> KafkaAck1["Message Acked<br/>to Kafka"]
+    DBKeep --> KafkaAck2["Message Acked<br/>to Kafka"]
+    
+    KafkaAck1 --> Inbox1["Removed from<br/>Durable Inbox"]
+    KafkaAck2 --> Inbox2["Removed from<br/>Durable Inbox"]
     
     style Success fill:#90EE90
     style Failure fill:#FF6B6B
-    style DBClean fill:#FFD700
-    style Inbox fill:#90EE90
+    style DBClean fill:#90EE90
+    style DBKeep fill:#FFD700
+    style Inbox1 fill:#90EE90
+    style Inbox2 fill:#FFD700
 ```
 
 ## Comparison: Wolverine vs MassTransit
