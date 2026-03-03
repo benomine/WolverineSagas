@@ -1,7 +1,7 @@
 #:package WolverineFx.Kafka@5.17.0
 #:package Microsoft.Extensions.Hosting@10.0.1
 #:package Microsoft.Extensions.Logging.Console@10.0.1
-#:package Spectre.Console@0.49.1
+#:package Spectre.Console@0.53.0
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -30,6 +30,7 @@ builder.UseWolverine(options =>
 });
 
 var host = builder.Build();
+await host.StartAsync();
 
 // Create the message bus for publishing
 var bus = host.Services.GetRequiredService<IMessageBus>();
@@ -98,6 +99,7 @@ while (true)
         else if (choice.StartsWith("[red]5"))
         {
             AnsiConsole.MarkupLine("[bold green]👋 Goodbye![/]");
+            await host.StopAsync();
             return;
         }
     }
@@ -308,7 +310,7 @@ async Task SendContinuousStream(IMessageBus bus, ILogger logger)
                     liveDisplay.AddRow(row[0], row[1], row[2]);
                 }
 
-                ctx.Update(liveDisplay);
+                ctx.UpdateTarget(liveDisplay);
 
                 await Task.Delay(500);
             }
@@ -319,7 +321,7 @@ async Task SendContinuousStream(IMessageBus bus, ILogger logger)
     var stopPanel = new Panel($"[magenta]Stream stopped. Sent {count} messages total[/]")
         .Header("[bold magenta]⏹️  Stream Stopped[/]")
         .Border(BoxBorder.Rounded)
-        .BorderColor(Color.Magenta);
+        .BorderColor(Color.Magenta1);
     
     AnsiConsole.Write(stopPanel);
     logger.LogInformation("⏹️  Stopped. Sent {Count} messages in stream", count);
