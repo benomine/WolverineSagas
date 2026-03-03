@@ -29,23 +29,25 @@ graph TD
     Success -->|Success| CompleteSaga["CompleteSaga<br/>Handler"]
     Success -->|Failure| FailSaga["FailSaga<br/>Handler + Error"]
     
-    CompleteSaga --> Completed["[Completed]<br/>MarkCompleted()"]
+    CompleteSaga --> Completed["[Completed]<br/>State Set"]
     FailSaga --> Failed["[Failed]<br/>Error Persisted"]
     
-    Completed --> Cleanup1["Saga Removed<br/>from DB"]
-    Failed --> Persist["Saga Persists<br/>in DB"]
+    Completed --> MarkComplete["MarkCompleted()"]
+    MarkComplete --> Cleanup["Saga Removed<br/>from DB"]
     
-    Cleanup1 --> END((END))
-    Persist --> Inspect["Available for<br/>Inspection & Retry"]
+    Failed --> Persist["Saga Remains<br/>in DB<br/>for Retry"]
+    
+    Cleanup --> END((END))
+    Persist --> END
     
     style START fill:#90EE90
     style Started fill:#87CEEB
     style Processing fill:#FFD700
     style Completed fill:#90EE90
     style Failed fill:#FF6B6B
-    style Cleanup1 fill:#90EE90
-    style Persist fill:#FFD700
-    style Inspect fill:#FFD700
+    style MarkComplete fill:#FFD700
+    style Cleanup fill:#90EE90
+    style Persist fill:#FF6B6B
     style END fill:#90EE90
 ```
 
@@ -118,35 +120,47 @@ This allows you to:
 **Success Path:**
 - CompleteSaga handler executes
 - Saga marked as Completed
+- MarkCompleted() called
 - Saga removed from database
 - Message acknowledged to Kafka
 
 **Failure Path:**
 - FailSaga handler executes with error message
 - Saga marked as Failed (persisted with error details)
-- Saga remains in database for troubleshooting
+- Saga remains in database (NOT marked complete)
 - Message acknowledged to Kafka (removed from inbox)
+- Available for manual inspection and retry
 
 ```mermaid
 graph LR
-    Success["Success:<br/>CompleteSaga"] --> MarkComplete1["MarkCompleted()"]
-    Failure["Failure:<br/>FailSaga + Error"] --> MarkComplete2["MarkCompleted()"]
+    Success["Success:<br/>CompleteSaga"] --> Completed["[Completed]<br/>State Set"]
+    Failure["Failure:<br/>FailSaga + Error"] --> Failed["[Failed]<br/>State Set"]
     
-    MarkComplete1 --> DBClean["Saga Removed<br/>from DB"]
-    MarkComplete2 --> DBKeep["Saga Persisted<br/>in DB"]
+    Completed --> MarkComplete["MarkCompleted()"]
+    
+    MarkComplete --> DBClean["Saga Removed<br/>from DB"]
+    Failed --> DBKeep["Saga Persists<br/>in DB"]
     
     DBClean --> KafkaAck1["Message Acked<br/>to Kafka"]
     DBKeep --> KafkaAck2["Message Acked<br/>to Kafka"]
     
-    KafkaAck1 --> Inbox1["Removed from<br/>Durable Inbox"]
-    KafkaAck2 --> Inbox2["Removed from<br/>Durable Inbox"]
+    KafkaAck1 --> Inbox1["Removed from<br/>Inbox"]
+    KafkaAck2 --> Inbox2["Removed from<br/>Inbox"]
+    
+    Inbox1 --> EndSuccess((END))
+    Inbox2 --> RetryState["[Waiting for Retry]"]
     
     style Success fill:#90EE90
     style Failure fill:#FF6B6B
+    style Completed fill:#90EE90
+    style Failed fill:#FF6B6B
+    style MarkComplete fill:#FFD700
     style DBClean fill:#90EE90
-    style DBKeep fill:#FFD700
+    style DBKeep fill:#FF6B6B
     style Inbox1 fill:#90EE90
     style Inbox2 fill:#FFD700
+    style RetryState fill:#FF6B6B
+    style EndSuccess fill:#90EE90
 ```
 
 ## Comparison: Wolverine vs MassTransit
