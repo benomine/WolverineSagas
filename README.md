@@ -314,15 +314,40 @@ kafka-console-producer --broker-list localhost:9092 --topic wolverine-sagas
 2. ProcessSaga triggered immediately
 3. Processing fails → Saga state: `Processing` then `Failed`
 4. Error message stored in `Message` column
-5. Saga cleaned up after MarkCompleted()
+5. Saga **persists** in database (NOT cleaned up)
+
+### Retry a Failed Saga
+```bash
+# Get the saga ID from failed sagas
+curl -s http://localhost:5000/openapi/v1.json | jq .
+
+# Retry the saga via the retry endpoint
+curl -X POST http://localhost:5000/sagas/{id}/retry
+
+# Response:
+# {"message":"Saga {id} has been reset and will be retried","sagaId":"{id}"}
+```
+
+**Expected behavior:**
+1. Saga state reset: `Failed` → `Started`
+2. Error message cleared
+3. ProcessSaga message published automatically
+4. Saga reprocessed immediately
+5. If successful: Saga cleaned up
+6. If failed again: Saga persists with new error
+
+You can also use **Scalar UI** (interactive API documentation):
+```bash
+# Available at http://localhost:5000/scalar/v1 in development
+```
 
 ### Query Saga Status (before cleanup)
 ```sql
 SELECT id, state, message, version FROM kafka_sagas;
 -- Results:
 -- id               | state | message                    | version
--- 550e8400-e29b... |   1   | NULL                       |   0
--- (saga persisted during processing)
+-- 550e8400-e29b... |   3   | Some error details...     |   0
+-- (failed saga persisted for retry)
 ```
 
 States: 0=Started, 1=Processing, 2=Completed, 3=Failed
