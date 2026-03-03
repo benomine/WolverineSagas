@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="WolverineSagas.ApiService/WolverineSagas.ApiService.csproj" />
+  <Project Path="WolverineSagas.AppHost/WolverineSagas.AppHost.csproj" />
+  <Project Path="WolverineSagas.ServiceDefaults/WolverineSagas.ServiceDefaults.csproj" />
+</Solution>
