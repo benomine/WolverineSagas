@@ -10,3 +10,4 @@ g:\Code\WolverineSagas\WolverineSagas\WolverineSagas.ServiceDefaults\obj\Debug\n
 g:\Code\WolverineSagas\WolverineSagas\WolverineSagas.ServiceDefaults\obj\Debug\net10.0\refint\WolverineSagas.ServiceDefaults.dll
 g:\Code\WolverineSagas\WolverineSagas\WolverineSagas.ServiceDefaults\obj\Debug\net10.0\WolverineSagas.ServiceDefaults.pdb
 g:\Code\WolverineSagas\WolverineSagas\WolverineSagas.ServiceDefaults\obj\Debug\net10.0\ref\WolverineSagas.ServiceDefaults.dll
+g:\Code\WolverineSagas\WolverineSagas\WolverineSagas.ServiceDefaults\obj\Debug\net10.0\WolverineSagas.ServiceDefaults.sourcelink.json

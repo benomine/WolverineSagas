@@ -281,3 +281,4 @@ g:\Code\WolverineSagas\WolverineSagas\WolverineSagas.ApiService\bin\Debug\net10.
 g:\Code\WolverineSagas\WolverineSagas\WolverineSagas.ApiService\bin\Debug\net10.0\Npgsql.DependencyInjection.dll
 g:\Code\WolverineSagas\WolverineSagas\WolverineSagas.ApiService\bin\Debug\net10.0\Npgsql.EntityFrameworkCore.PostgreSQL.dll
 g:\Code\WolverineSagas\WolverineSagas\WolverineSagas.ApiService\bin\Debug\net10.0\Npgsql.OpenTelemetry.dll
+g:\Code\WolverineSagas\WolverineSagas\WolverineSagas.ApiService\obj\Debug\net10.0\WolverineSagas.ApiService.sourcelink.json

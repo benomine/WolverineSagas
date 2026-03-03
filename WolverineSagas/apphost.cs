@@ -4,7 +4,7 @@
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-var kafka = builder.AddKafka("kafka").WithKafkaUI();
+var kafka = builder.AddKafka("kafka", port: 9092).WithKafkaUI();
 
 var db = builder
     .AddPostgres("postgres")

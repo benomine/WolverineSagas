@@ -1,7 +1,8 @@
-#:package WolverineFx.Kafka@5.17.0
 #:package Microsoft.Extensions.Hosting@10.0.1
 #:package Microsoft.Extensions.Logging.Console@10.0.1
 #:package Spectre.Console@0.53.0
+#:package WolverineFx.Kafka@5.17.0
+#:property PublishAot=false
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -17,7 +18,6 @@ builder.ConfigureServices(services =>
     services.AddLogging(logging =>
     {
         logging.ClearProviders();
-        logging.AddConsole();
         logging.SetMinimumLevel(LogLevel.Information);
     });
 });
@@ -27,6 +27,8 @@ builder.UseWolverine(options =>
     var kafkaConnectionString = Environment.GetEnvironmentVariable("KAFKA_CONNECTION_STRING") 
         ?? "localhost:9092";
     options.UseKafka(kafkaConnectionString);
+    options.PublishMessage<KafkaMessage>()
+            .ToKafkaTopic("wolverine-sagas");
 });
 
 var host = builder.Build();
@@ -113,12 +115,8 @@ while (true)
 
 async Task SendSuccessMessage(IMessageBus bus, ILogger logger)
 {
-    var id = Guid.NewGuid();
-    var message = new KafkaMessage
-    {
-        Id = id,
-        Content = "This message will succeed"
-    };
+    var id = Guid.CreateVersion7();
+    var message = new KafkaMessage(id, "This message will succeed");
 
     await bus.PublishAsync(message);
     
@@ -134,12 +132,8 @@ async Task SendSuccessMessage(IMessageBus bus, ILogger logger)
 
 async Task SendFailureMessage(IMessageBus bus, ILogger logger)
 {
-    var id = Guid.NewGuid();
-    var message = new KafkaMessage
-    {
-        Id = id,
-        Content = "This message will FAIL - contains 'fail'"
-    };
+    var id = Guid.CreateVersion7();
+    var message = new KafkaMessage(id, "This message will FAIL - contains 'fail'");
 
     await bus.PublishAsync(message);
     
@@ -201,13 +195,9 @@ async Task SendRandomMessages(IMessageBus bus, ILogger logger, int count)
 
             for (int i = 0; i < count; i++)
             {
-                var id = Guid.NewGuid();
+                var id = Guid.CreateVersion7();
                 var content = contents[random.Next(contents.Length)];
-                var message = new KafkaMessage
-                {
-                    Id = id,
-                    Content = content
-                };
+                var message = new KafkaMessage(id, content);
 
                 await bus.PublishAsync(message);
                 
@@ -279,13 +269,9 @@ async Task SendContinuousStream(IMessageBus bus, ILogger logger)
                     break;
                 }
 
-                var id = Guid.NewGuid();
+                var id = Guid.CreateVersion7();
                 var content = contents[random.Next(contents.Length)];
-                var message = new KafkaMessage
-                {
-                    Id = id,
-                    Content = content
-                };
+                var message = new KafkaMessage(id, content);
 
                 await bus.PublishAsync(message);
                 count++;
@@ -327,9 +313,4 @@ async Task SendContinuousStream(IMessageBus bus, ILogger logger)
     logger.LogInformation("⏹️  Stopped. Sent {Count} messages in stream", count);
 }
 
-// Model classes - must be defined at file scope
-public class KafkaMessage
-{
-    public Guid Id { get; set; }
-    public string Content { get; set; } = string.Empty;
-}
+public record KafkaMessage(Guid Id, string Content);
