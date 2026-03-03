@@ -1778,6 +1778,22 @@
           }
         }
       },
+      "Scalar.AspNetCore/2.12.52": {
+        "type": "package",
+        "compile": {
+          "lib/net10.0/Scalar.AspNetCore.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net10.0/Scalar.AspNetCore.dll": {
+            "related": ".xml"
+          }
+        },
+        "frameworkReferences": [
+          "Microsoft.AspNetCore.App"
+        ]
+      },
       "Spectre.Console/0.53.0": {
         "type": "package",
         "compile": {
@@ -5037,6 +5053,25 @@
         "polly.ratelimiting.nuspec"
       ]
     },
+    "Scalar.AspNetCore/2.12.52": {
+      "sha512": "g4aheFs8L9F43c3eKP9j75r9Ol2FUpej5Ncs+HbdFDXuxWY7rnymK+ww1ASo6nRsrcn5RwX9La1vQFK8Mexixg==",
+      "type": "package",
+      "path": "scalar.aspnetcore/2.12.52",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "README.md",
+        "icon.png",
+        "lib/net10.0/Scalar.AspNetCore.dll",
+        "lib/net10.0/Scalar.AspNetCore.xml",
+        "lib/net8.0/Scalar.AspNetCore.dll",
+        "lib/net8.0/Scalar.AspNetCore.xml",
+        "lib/net9.0/Scalar.AspNetCore.dll",
+        "lib/net9.0/Scalar.AspNetCore.xml",
+        "scalar.aspnetcore.2.12.52.nupkg.sha512",
+        "scalar.aspnetcore.nuspec"
+      ]
+    },
     "Spectre.Console/0.53.0": {
       "sha512": "m2iv8Egfywp7FaNLKCmCFHbSf36D4ctzZKvlAK9NXMyGLh6L+CnrZWK8o+LOYsoAS1jtoHn0W1BT0W8vuq/FUw==",
       "type": "package",
@@ -5643,6 +5678,7 @@
       "Aspire.Npgsql >= 13.1.2",
       "Aspire.Npgsql.EntityFrameworkCore.PostgreSQL >= 13.1.2",
       "Microsoft.AspNetCore.OpenApi >= 10.0.1",
+      "Scalar.AspNetCore >= 2.12.52",
       "WolverineFx.EntityFrameworkCore >= 5.17.0",
       "WolverineFx.Kafka >= 5.17.0",
       "WolverineFx.Marten >= 5.17.0",
@@ -5721,6 +5757,10 @@
           "Microsoft.AspNetCore.OpenApi": {
             "target": "Package",
             "version": "[10.0.1, )"
+          },
+          "Scalar.AspNetCore": {
+            "target": "Package",
+            "version": "[2.12.52, )"
           },
           "WolverineFx.EntityFrameworkCore": {
             "target": "Package",

@@ -11,6 +11,7 @@
           "Aspire.Npgsql": "13.1.2",
           "Aspire.Npgsql.EntityFrameworkCore.PostgreSQL": "13.1.2",
           "Microsoft.AspNetCore.OpenApi": "10.0.1",
+          "Scalar.AspNetCore": "2.12.52",
           "WolverineFx.EntityFrameworkCore": "5.17.0",
           "WolverineFx.Kafka": "5.17.0",
           "WolverineFx.Marten": "5.17.0",
@@ -1364,6 +1365,14 @@
           }
         }
       },
+      "Scalar.AspNetCore/2.12.52": {
+        "runtime": {
+          "lib/net10.0/Scalar.AspNetCore.dll": {
+            "assemblyVersion": "2.12.52.0",
+            "fileVersion": "2.12.52.0"
+          }
+        }
+      },
       "Spectre.Console/0.53.0": {
         "runtime": {
           "lib/net9.0/Spectre.Console.dll": {
@@ -2170,6 +2179,13 @@
       "sha512": "sha512-ehTImQ/eUyO07VYW2WvwSmU9rRH200SKJ/3jku9rOkyWE0A2JxNFmAVms8dSn49QLSjmjFRRSgfNyOgr/2PSmA==",
       "path": "polly.ratelimiting/8.4.2",
       "hashPath": "polly.ratelimiting.8.4.2.nupkg.sha512"
+    },
+    "Scalar.AspNetCore/2.12.52": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-g4aheFs8L9F43c3eKP9j75r9Ol2FUpej5Ncs+HbdFDXuxWY7rnymK+ww1ASo6nRsrcn5RwX9La1vQFK8Mexixg==",
+      "path": "scalar.aspnetcore/2.12.52",
+      "hashPath": "scalar.aspnetcore.2.12.52.nupkg.sha512"
     },
     "Spectre.Console/0.53.0": {
       "type": "package",
