@@ -19,19 +19,31 @@ The implementation is **functionally equivalent to a MassTransit StateMachine** 
 
 The saga progresses through explicit states, all persisted in PostgreSQL:
 
-```
-START
-  ↓
-[Started] ─→ ProcessSaga message
-  ↓
-[Processing] ─→ Handle message
-  ├─→ Success: CompleteSaga
-  │     ↓
-  │   [Completed] ─→ MarkCompleted() → Cleanup
-  │
-  └─→ Failure: FailSaga + error message
-        ↓
-      [Failed] ─→ MarkCompleted() → Cleanup
+```mermaid
+graph TD
+    START((START)) --> Started["[Started]<br/>Saga Created"]
+    Started --> ProcessMsg["ProcessSaga Message<br/>Published"]
+    ProcessMsg --> Processing["[Processing]<br/>Handling Message"]
+    
+    Processing --> Success{Outcome}
+    Success -->|Success| CompleteSaga["CompleteSaga<br/>Handler"]
+    Success -->|Failure| FailSaga["FailSaga<br/>Handler + Error"]
+    
+    CompleteSaga --> Completed["[Completed]<br/>MarkCompleted()"]
+    FailSaga --> Failed["[Failed]<br/>MarkCompleted()"]
+    
+    Completed --> Cleanup1["Saga Removed<br/>from DB"]
+    Failed --> Cleanup2["Saga Removed<br/>from DB"]
+    
+    Cleanup1 --> END((END))
+    Cleanup2 --> END
+    
+    style START fill:#90EE90
+    style Started fill:#87CEEB
+    style Processing fill:#FFD700
+    style Completed fill:#90EE90
+    style Failed fill:#FF6B6B
+    style END fill:#90EE90
 ```
 
 ### Key Components
@@ -93,10 +105,20 @@ public string? Message { get; set; } // Stores error details
 
 ### ✅ Database Cleanup
 Sagas automatically cleaned up after `MarkCompleted()`:
-```
-Success: CompleteSaga → Saga marked complete → Removed from DB
-Failure: FailSaga → Saga marked complete → Removed from DB
-Message: Acknowledged to Kafka → Removed from inbox
+
+```mermaid
+graph LR
+    Success["Success:<br/>CompleteSaga"] --> MarkComplete1["MarkCompleted()"]
+    Failure["Failure:<br/>FailSaga + Error"] --> MarkComplete2["MarkCompleted()"]
+    MarkComplete1 --> DBClean["Saga Removed<br/>from kafka_sagas"]
+    MarkComplete2 --> DBClean
+    DBClean --> KafkaAck["Message Acked<br/>to Kafka"]
+    KafkaAck --> Inbox["Removed from<br/>Durable Inbox"]
+    
+    style Success fill:#90EE90
+    style Failure fill:#FF6B6B
+    style DBClean fill:#FFD700
+    style Inbox fill:#90EE90
 ```
 
 ## Comparison: Wolverine vs MassTransit
@@ -137,15 +159,41 @@ WolverineSagas/
 │   ├── appsettings.json          # Configuration
 │   ├── Migrations/               # EF Core migrations
 │   └── WolverineSagas.ApiService.csproj
-├── WolverineSagas.AppHost/       # Aspire orchestration
-└── WolverineSagas.ServiceDefaults/
+├── WolverineSagas.AppHost/       # Aspire orchestration (apphost.cs)
+├── WolverineSagas.ServiceDefaults/
+└── producer.cs                   # Interactive Kafka message producer
 ```
+
+### producer.cs - Interactive Kafka Message Generator
+
+A **standalone executable** for testing the saga with various message patterns. Built with **Spectre.Console** for rich terminal UI.
+
+**Run the producer:**
+```bash
+dotnet run producer.cs
+```
+
+**Features:**
+- 🎯 **Single Success Message** - Sends one message that will complete successfully
+- ⚠️ **Single Failure Message** - Sends a message that triggers saga failure
+- 📤 **Batch Sender** - Sends 10 random messages with progress tracking
+- 🔄 **Continuous Stream** - Generates messages indefinitely (press Q to stop), with live table display
+- 🎨 **Rich UI** - Color-coded panels, progress bars, formatted tables with Spectre.Console
+
+**Configuration:**
+```bash
+# Override Kafka connection (default: localhost:9092)
+export KAFKA_CONNECTION_STRING=kafka-host:9092
+dotnet run producer.cs
+```
+
+The producer requires `PublishAot=false` in `producer.cs` to support .NET 10's restricted reflection mode.
 
 ## Getting Started
 
 ### Prerequisites
 - **.NET 10 SDK** ([download](https://dotnet.microsoft.com/download))
-- **PostgreSQL 12+** (or use Aspire to run containerized)
+- **PostgreSQL 17+** (or use Aspire to run containerized)
 - **Kafka** (or use Aspire)
 - **GitHub CLI** (for repository setup)
 
