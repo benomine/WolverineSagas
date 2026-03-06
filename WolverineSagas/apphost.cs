@@ -15,6 +15,14 @@ var api = builder.AddProject("api", "WolverineSagas.ApiService/WolverineSagas.Ap
     .WithReference(kafka)
     .WithReference(db)
     .WaitFor(kafka)
-    .WaitFor(db);
+    .WaitFor(db)
+    .WithUrl("/scalar", "Scalar");
+
+#pragma warning disable ASPIRECSHARPAPPS001
+var producer = builder.AddCSharpApp("producer", "producer.cs")
+    .WithReference(kafka)
+    .WaitFor(kafka)
+    .WithExplicitStart();
+#pragma warning restore ASPIRECSHARPAPPS001
 
 builder.Build().Run();

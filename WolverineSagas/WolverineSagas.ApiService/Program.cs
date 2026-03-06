@@ -1,3 +1,5 @@
+using Ardalis.Result;
+using Ardalis.Result.AspNetCore;
 using JasperFx.Resources;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
@@ -11,14 +13,6 @@ using WolverineSagas.ApiService;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
-
-// builder.Services.AddMarten(options =>
-//     {
-//         options.DisableNpgsqlLogging = true;
-//         var connectionString = builder.Configuration.GetConnectionString("wolverine");
-//         options.Connection(connectionString!);
-//     })
-//     .IntegrateWithWolverine();
 
 builder.Services.AddNpgsqlDataSource(builder.Configuration.GetConnectionString("wolverine")!);
 builder.Services.AddDbContext<KafkaSagaDbContext>((sp, options) =>
@@ -54,7 +48,12 @@ app.UseExceptionHandler();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
-    app.MapScalarApiReference();
+    app.MapScalarApiReference(options =>
+    {
+        options
+            .WithTheme(ScalarTheme.Purple)
+            .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.AsyncHttp);
+    });
 }
 
 app.MapDefaultEndpoints();
@@ -66,7 +65,7 @@ app.MapGet("/sagas/failed", async (KafkaSagaDbContext dbContext) =>
         .Where(s => s.State == KafkaSagaState.Failed)
         .Select(s => new FailedSagaDto
         {
-            SagaId = s.Id!,
+            SagaId = s.Id,
             InitialMessage = s.Content,
             ErrorMessage = s.Message
         })
@@ -82,26 +81,9 @@ app.MapGet("/sagas/failed", async (KafkaSagaDbContext dbContext) =>
 .Produces<List<FailedSagaDto>>(200);
 
 // Retry endpoint for failed sagas
-app.MapPost("/sagas/{id:guid}/retry", async (Guid id, KafkaSagaDbContext dbContext, IMessageBus bus) =>
+app.MapPost("/sagas/{id:guid}/retry", async (Guid id, KafkaSagaDbContext dbContext, IMessageBus bus, CancellationToken cancellationToken) =>
 {
-    var saga = await dbContext.Sagas.FirstOrDefaultAsync(s => s.Id == id.ToString());
-    
-    if (saga is null)
-        return Results.NotFound($"Saga with ID {id} not found");
-    
-    if (saga.State != KafkaSagaState.Failed)
-        return Results.BadRequest($"Saga is in {(KafkaSagaState)saga.State} state, not Failed. Only failed sagas can be retried.");
-    
-    // Reset state back to Started and retry
-    saga.State = (int)KafkaSagaState.Started;
-    saga.Message = null; // Clear previous error
-    
-    await dbContext.SaveChangesAsync();
-    
-    // Publish ProcessSaga message to retry
-    await bus.PublishAsync(new ProcessSaga(id.ToString()));
-    
-    return Results.Ok(new { message = $"Saga {id} has been reset and will be retried", sagaId = id });
+    return (await bus.InvokeAsync<Result>(new KafkaRetryMessage(id), cancellationToken)).ToMinimalApiResult();
 })
 .WithName("RetrySaga")
 .WithDescription("Retry a failed saga by ID")

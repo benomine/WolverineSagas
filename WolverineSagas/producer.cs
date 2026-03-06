@@ -2,6 +2,11 @@
 #:package Microsoft.Extensions.Logging.Console@10.0.1
 #:package Spectre.Console@0.53.0
 #:package WolverineFx.Kafka@5.17.0
+#:package OpenTelemetry.Exporter.OpenTelemetryProtocol@1.15.0
+#:package OpenTelemetry.Extensions.Hosting@1.15.0
+#:package OpenTelemetry.Instrumentation.AspNetCore@1.15.0
+#:package OpenTelemetry.Instrumentation.Http@1.15.0
+#:package OpenTelemetry.Instrumentation.Runtime@1.15.0
 #:property PublishAot=false
 
 using Microsoft.Extensions.DependencyInjection;
@@ -10,25 +15,70 @@ using Microsoft.Extensions.Logging;
 using Wolverine;
 using Wolverine.Kafka;
 using Spectre.Console;
+using Microsoft.Extensions.Configuration;
+using OpenTelemetry;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Trace;
+using JasperFx.Resources;
 
-var builder = Host.CreateDefaultBuilder(args);
-
-builder.ConfigureServices(services =>
-{
-    services.AddLogging(logging =>
+var builder = Host.CreateDefaultBuilder(args)
+    .ConfigureHostConfiguration(c => 
+    {
+        c.AddEnvironmentVariables();
+    })
+    .ConfigureLogging(logging =>
     {
         logging.ClearProviders();
         logging.SetMinimumLevel(LogLevel.Information);
+        logging.AddOpenTelemetry(options =>
+        {
+            options.IncludeFormattedMessage = true;
+            options.IncludeScopes = true;
+        });
+    })
+    .ConfigureServices((context, services) =>
+    {
+        services.AddOpenTelemetry()
+            .WithMetrics(metrics =>
+            {
+                metrics
+                    .AddRuntimeInstrumentation()
+                    .AddHttpClientInstrumentation()
+                    .AddMeter("Wolverine");
+            })
+            .WithTracing(tracing =>
+            {
+                tracing.AddSource(context.HostingEnvironment.ApplicationName)
+                    .AddHttpClientInstrumentation()
+                    .AddSource("Wolverine");
+            });
+
+        var useOtlpExporter = !string.IsNullOrWhiteSpace(context.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);
+        if (useOtlpExporter)
+        {
+            services.AddOpenTelemetry().UseOtlpExporter();
+        }
     });
-});
 
 builder.UseWolverine(options =>
 {
-    var kafkaConnectionString = Environment.GetEnvironmentVariable("KAFKA_CONNECTION_STRING") 
+    var kafkaConnectionString = Environment.GetEnvironmentVariable("ConnectionStrings__kafka") 
         ?? "localhost:9092";
     options.UseKafka(kafkaConnectionString);
-    options.PublishMessage<KafkaMessage>()
-            .ToKafkaTopic("wolverine-sagas");
+    options
+        .PublishMessage<KafkaMessage>()
+        .ToKafkaTopic("wolverine-sagas")
+        .ConfigureProducer(p => 
+        {
+            p.ClientId = "wolverine-producer";
+        })
+        .CustomizeOutgoing(envelop => 
+        {
+            envelop.Headers["x-source"] = "wolverine-producer";
+            envelop.Headers["x-timestamp"] = DateTimeOffset.UtcNow.ToString("o");
+            envelop.Headers["x-correlation-id"] = Guid.CreateVersion7().ToString();
+        });
+    options.Services.AddResourceSetupOnStartup();
 });
 
 var host = builder.Build();
@@ -37,6 +87,15 @@ await host.StartAsync();
 // Create the message bus for publishing
 var bus = host.Services.GetRequiredService<IMessageBus>();
 var logger = host.Services.GetRequiredService<ILogger<Program>>();
+
+// Check if terminal is interactive
+if (!AnsiConsole.Profile.Capabilities.Interactive)
+{
+    AnsiConsole.MarkupLine("[bold cyan]🔄 Non-interactive mode: Sending 10 random messages automatically...[/]");
+    await SendRandomMessages(bus, logger, count: 10);
+    await host.StopAsync();
+    return;
+}
 
 // Welcome banner
 AnsiConsole.Write(
@@ -69,14 +128,13 @@ while (true)
     var options = new SelectionPrompt<string>()
         .Title("[bold]What would you like to do?[/]")
         .AddChoices(
-            new[]
-            {
+            [
                 "[green]1. ✅ Send Success Message[/]",
                 "[yellow]2. ⚠️  Send Failure Message[/]",
                 "[cyan]3. 📤 Send Random Messages (10x)[/]",
                 "[magenta]4. 🔄 Send Continuous Stream[/]",
                 "[red]5. 🚪 Exit[/]"
-            });
+            ]);
 
     var choice = AnsiConsole.Prompt(options);
 
@@ -149,7 +207,6 @@ async Task SendFailureMessage(IMessageBus bus, ILogger logger)
 
 async Task SendRandomMessages(IMessageBus bus, ILogger logger, int count)
 {
-    var random = new Random();
     var contents = new[]
     {
         "Process order #12345",
@@ -182,13 +239,12 @@ async Task SendRandomMessages(IMessageBus bus, ILogger logger, int count)
 
     await AnsiConsole.Progress()
         .Columns(
-            new ProgressColumn[] 
-            {
+            [
                 new TaskDescriptionColumn(),
                 new ProgressBarColumn(),
                 new PercentageColumn(),
                 new RemainingTimeColumn()
-            })
+            ])
         .StartAsync(async ctx =>
         {
             var task = ctx.AddTask($"[cyan]Sending {count} messages[/]", maxValue: count);
@@ -196,7 +252,7 @@ async Task SendRandomMessages(IMessageBus bus, ILogger logger, int count)
             for (int i = 0; i < count; i++)
             {
                 var id = Guid.CreateVersion7();
-                var content = contents[random.Next(contents.Length)];
+                var content = contents[Random.Shared.Next(contents.Length)];
                 var message = new KafkaMessage(id, content);
 
                 await bus.PublishAsync(message);
@@ -207,7 +263,7 @@ async Task SendRandomMessages(IMessageBus bus, ILogger logger, int count)
                 
                 table.AddRow(
                     (i + 1).ToString(),
-                    id.ToString("D").Substring(0, 8),
+                    id.ToString("D"),
                     content.Length > 25 ? content.Substring(0, 22) + "..." : content,
                     status);
 
@@ -276,7 +332,7 @@ async Task SendContinuousStream(IMessageBus bus, ILogger logger)
                 await bus.PublishAsync(message);
                 count++;
 
-                rows.Insert(0, new[] { count.ToString(), id.ToString("D").Substring(0, 8), content });
+                rows.Insert(0, [count.ToString(), id.ToString("D").Substring(0, 8), content]);
                 
                 // Keep only last 10 rows
                 if (rows.Count > 10)

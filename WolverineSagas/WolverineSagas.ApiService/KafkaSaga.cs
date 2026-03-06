@@ -12,13 +12,13 @@ public enum KafkaSagaState
 }
 
 public record StartSaga(KafkaMessage Message);
-public record ProcessSaga(string Id);
-public record CompleteSaga(string Id);
-public record FailSaga(string Id, string? ErrorMessage = null);
+public record ProcessSaga(Guid Id);
+public record CompleteSaga(Guid Id);
+public record FailSaga(Guid Id, string? ErrorMessage = null);
 
 public class KafkaSaga : Saga
 {
-    public string? Id { get; set; }
+    public Guid? Id { get; set; }
     public string? Content { get; set; }
     public new int Version { get; set; }
     public KafkaSagaState State { get; set; } = KafkaSagaState.Started;
@@ -29,12 +29,12 @@ public class KafkaSaga : Saga
         logger.LogInformation("Starting Kafka saga with message ID: {MessageId}", saga.Message.Id);
         return (new KafkaSaga
         {
-            Id = saga.Message.Id.ToString(),
+            Id = saga.Message.Id,
             Content = saga.Message.Content,
             Version = 0,
             State = KafkaSagaState.Started,
             Message = null
-        }, new ProcessSaga(saga.Message.Id.ToString()));
+        }, new ProcessSaga(saga.Message.Id));
     }
 
     public void Handle(ProcessSaga saga, ILogger<KafkaSaga> logger, IMessageBus bus)
